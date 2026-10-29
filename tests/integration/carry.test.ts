@@ -1,0 +1,20 @@
+import { beforeAll,afterAll,it,expect } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { db } from '../../src/server/db/client';
+import { migrate } from '../../src/server/db/migrate';
+import { createProject,trade,distribute } from '../../src/server/service';
+const creator='sim:carry-'+randomUUID();
+beforeAll(async()=>{await migrate();await db.query('INSERT INTO wallets(address,label) VALUES($1,$1)',[creator]);});
+afterAll(()=>db.end());
+it('carries unallocatable holder fees forward without crediting the creator',async()=>{
+ const {project}=await createProject(creator,randomUUID(),{name:'Carry test',symbol:'CARRY',description:'',mode:'holders',recipients:[]});
+ await trade(creator,randomUUID(),project.id,{side:'buy',amount:'0.5'});
+ await distribute(creator,randomUUID(),project.id);
+ const p=(await db.query('SELECT * FROM projects WHERE id=$1',[project.id])).rows[0];
+ expect(p.undistributed).toBe(p.creator_fees);
+ expect((await db.query('SELECT * FROM rewards WHERE project_id=$1 AND wallet=$2',[project.id,creator])).rowCount).toBe(0);
+ await distribute(creator,randomUUID(),project.id);
+ const after=(await db.query('SELECT * FROM projects WHERE id=$1',[project.id])).rows[0];
+ expect(after.undistributed).toBe(p.undistributed);
+ expect((await db.query('SELECT * FROM rewards WHERE project_id=$1 AND wallet=$2',[project.id,creator])).rowCount).toBe(0);
+});

@@ -1,0 +1,9 @@
+packages:
+  - .
+onlyBuiltDependencies:
+  - node
+  - esbuild
+  - '@embedded-postgres/darwin-arm64'
+  - '@embedded-postgres/darwin-x64'
+  - '@embedded-postgres/linux-x64'
+  - unrs-resolver
